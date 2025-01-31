@@ -119,20 +119,31 @@ router.put('/:id/publish', async (req, res) => {
     try {
         const { id } = req.params;
 
+        // Найдем отзыв по ID
+        const review = await reviewsCollection().findOne({ _id: new ObjectId(id) });
+
+        if (!review) {
+            return res.status(404).json({ message: 'Review not found' });
+        }
+
+        // Инвертируем статус (если было true → станет false, и наоборот)
+        const newStatus = !review.published;
+
         const result = await reviewsCollection().updateOne(
             { _id: new ObjectId(id) },
-            { $set: { published: true, publishedAt: new Date().toISOString() } }
+            { $set: { published: newStatus, publishedAt: newStatus ? new Date().toISOString() : null } }
         );
 
         if (result.matchedCount === 0) {
             return res.status(404).json({ message: 'Review not found' });
         }
 
-        res.status(200).json({ message: 'Review published successfully' });
+        res.status(200).json({ success: true, published: newStatus });
     } catch (error) {
-        res.status(500).json({ message: 'Error publishing review', error });
+        res.status(500).json({ message: 'Error updating publish status', error });
     }
 });
+
 
 // Удалить отзыв
 router.delete('/:id', async (req, res) => {
